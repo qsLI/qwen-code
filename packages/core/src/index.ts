@@ -9,10 +9,33 @@ export * from './config/config.js';
 export * from './output/types.js';
 export * from './output/json-formatter.js';
 
+// Export models
+export {
+  type ModelCapabilities,
+  type ModelGenerationConfig,
+  type ModelConfig as ProviderModelConfig,
+  type ModelProvidersConfig,
+  type ResolvedModelConfig,
+  type AvailableModel,
+  type ModelSwitchMetadata,
+  QWEN_OAUTH_MODELS,
+  ModelRegistry,
+  ModelsConfig,
+  type ModelsConfigOptions,
+  type OnModelChangeCallback,
+  // Model configuration resolver
+  resolveModelConfig,
+  validateModelConfig,
+  type ModelConfigSourcesInput,
+  type ModelConfigCliInput,
+  type ModelConfigSettingsInput,
+  type ModelConfigResolutionResult,
+  type ModelConfigValidationResult,
+} from './models/index.js';
+
 // Export Core Logic
 export * from './core/client.js';
 export * from './core/contentGenerator.js';
-export * from './core/loggingContentGenerator.js';
 export * from './core/geminiChat.js';
 export * from './core/logger.js';
 export * from './core/prompts.js';
@@ -22,13 +45,7 @@ export * from './core/geminiRequest.js';
 export * from './core/coreToolScheduler.js';
 export * from './core/nonInteractiveToolExecutor.js';
 
-export * from './fallback/types.js';
-
-export * from './code_assist/codeAssist.js';
-export * from './code_assist/oauth2.js';
 export * from './qwen/qwenOAuth2.js';
-export * from './code_assist/server.js';
-export * from './code_assist/types.js';
 
 // Export utilities
 export * from './utils/paths.js';
@@ -43,6 +60,7 @@ export * from './utils/quotaErrorDetection.js';
 export * from './utils/fileUtils.js';
 export * from './utils/retry.js';
 export * from './utils/shell-utils.js';
+export * from './utils/tool-utils.js';
 export * from './utils/terminalSerializer.js';
 export * from './utils/systemEncoding.js';
 export * from './utils/textUtils.js';
@@ -58,6 +76,9 @@ export * from './utils/subagentGenerator.js';
 export * from './utils/projectSummary.js';
 export * from './utils/promptIdContext.js';
 export * from './utils/thoughtUtils.js';
+
+// Config resolution utilities
+export * from './utils/configResolver.js';
 
 // Export services
 export * from './services/fileDiscoveryService.js';
@@ -85,6 +106,9 @@ export * from './tools/tool-registry.js';
 // Export subagents (Phase 1)
 export * from './subagents/index.js';
 
+// Export skills
+export * from './skills/index.js';
+
 // Export prompt logic
 export * from './prompts/mcp-prompts.js';
 
@@ -106,6 +130,7 @@ export * from './tools/mcp-client-manager.js';
 export * from './tools/mcp-tool.js';
 export * from './tools/sdk-control-client-transport.js';
 export * from './tools/task.js';
+export * from './tools/skill.js';
 export * from './tools/todoWrite.js';
 export * from './tools/exitPlanMode.js';
 

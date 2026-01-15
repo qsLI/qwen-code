@@ -19,10 +19,6 @@ import type {
 import { ApiError, createUserContent } from '@google/genai';
 import { retryWithBackoff } from '../utils/retry.js';
 import type { Config } from '../config/config.js';
-import {
-  DEFAULT_GEMINI_FLASH_MODEL,
-  getEffectiveModel,
-} from '../config/models.js';
 import { hasCycleInSchema } from '../tools/tools.js';
 import type { StructuredError } from './turn.js';
 import {
@@ -92,6 +88,7 @@ export function isValidNonThoughtTextPart(part: Part): boolean {
   return (
     typeof part.text === 'string' &&
     !part.thought &&
+    !part.thoughtSignature &&
     // Technically, the model should never generate parts that have text and
     //  any of these but we don't trust them so check anyways.
     !part.functionCall &&
@@ -109,16 +106,22 @@ function isValidContent(content: Content): boolean {
     if (part === undefined || Object.keys(part).length === 0) {
       return false;
     }
-    if (
-      !part.thought &&
-      part.text !== undefined &&
-      part.text === '' &&
-      part.functionCall === undefined
-    ) {
+    if (!isValidContentPart(part)) {
       return false;
     }
   }
   return true;
+}
+
+function isValidContentPart(part: Part): boolean {
+  const isInvalid =
+    !part.thought &&
+    !part.thoughtSignature &&
+    part.text !== undefined &&
+    part.text === '' &&
+    part.functionCall === undefined;
+
+  return !isInvalid;
 }
 
 /**
@@ -345,31 +348,15 @@ export class GeminiChat {
     params: SendMessageParameters,
     prompt_id: string,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
-    const apiCall = () => {
-      const modelToUse = getEffectiveModel(
-        this.config.isInFallbackMode(),
-        model,
-      );
-
-      if (
-        this.config.getQuotaErrorOccurred() &&
-        modelToUse === DEFAULT_GEMINI_FLASH_MODEL
-      ) {
-        throw new Error(
-          'Please submit a new query to continue with the Flash model.',
-        );
-      }
-
-      return this.config.getContentGenerator().generateContentStream(
+    const apiCall = () =>
+      this.config.getContentGenerator().generateContentStream(
         {
-          model: modelToUse,
+          model,
           contents: requestContents,
           config: { ...this.generationConfig, ...params.config },
         },
         prompt_id,
       );
-    };
-
     const onPersistent429Callback = async (
       authType?: string,
       error?: unknown,
@@ -448,15 +435,29 @@ export class GeminiChat {
         if (!content.parts) return content;
 
         // Filter out thought parts entirely
-        const filteredParts = content.parts.filter(
-          (part) =>
-            !(
+        const filteredParts = content.parts
+          .filter(
+            (part) =>
+              !(
+                part &&
+                typeof part === 'object' &&
+                'thought' in part &&
+                part.thought
+              ),
+          )
+          .map((part) => {
+            if (
               part &&
               typeof part === 'object' &&
-              'thought' in part &&
-              part.thought
-            ),
-        );
+              'thoughtSignature' in part
+            ) {
+              const newPart = { ...part };
+              delete (newPart as { thoughtSignature?: string })
+                .thoughtSignature;
+              return newPart;
+            }
+            return part;
+          });
 
         return {
           ...content,
@@ -538,11 +539,26 @@ export class GeminiChat {
       yield chunk; // Yield every chunk to the UI immediately.
     }
 
-    const thoughtParts = allModelParts.filter((part) => part.thought);
-    const thoughtText = thoughtParts
+    let thoughtContentPart: Part | undefined;
+    const thoughtText = allModelParts
+      .filter((part) => part.thought)
       .map((part) => part.text)
       .join('')
       .trim();
+
+    if (thoughtText !== '') {
+      thoughtContentPart = {
+        text: thoughtText,
+        thought: true,
+      };
+
+      const thoughtSignature = allModelParts.filter(
+        (part) => part.thoughtSignature && part.thought,
+      )?.[0]?.thoughtSignature;
+      if (thoughtContentPart && thoughtSignature) {
+        thoughtContentPart.thoughtSignature = thoughtSignature;
+      }
+    }
 
     const contentParts = allModelParts.filter((part) => !part.thought);
     const consolidatedHistoryParts: Part[] = [];
@@ -555,7 +571,7 @@ export class GeminiChat {
         isValidNonThoughtTextPart(part)
       ) {
         lastPart.text += part.text;
-      } else {
+      } else if (isValidContentPart(part)) {
         consolidatedHistoryParts.push(part);
       }
     }
@@ -567,11 +583,11 @@ export class GeminiChat {
       .trim();
 
     // Record assistant turn with raw Content and metadata
-    if (thoughtText || contentText || hasToolCall || usageMetadata) {
+    if (thoughtContentPart || contentText || hasToolCall || usageMetadata) {
       this.chatRecordingService?.recordAssistantTurn({
         model,
         message: [
-          ...(thoughtText ? [{ text: thoughtText, thought: true }] : []),
+          ...(thoughtContentPart ? [thoughtContentPart] : []),
           ...(contentText ? [{ text: contentText }] : []),
           ...(hasToolCall
             ? contentParts
@@ -607,7 +623,7 @@ export class GeminiChat {
     this.history.push({
       role: 'model',
       parts: [
-        ...(thoughtText ? [{ text: thoughtText, thought: true }] : []),
+        ...(thoughtContentPart ? [thoughtContentPart] : []),
         ...consolidatedHistoryParts,
       ],
     });

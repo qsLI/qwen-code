@@ -87,7 +87,6 @@
 
 /* Output content with subtle styling */
 .execute-toolcall-output-subtle {
-  background-color: var(--app-code-background);
   white-space: pre;
   overflow-x: auto;
   max-width: 100%;
@@ -99,4 +98,10 @@
 /* Error content styling */
 .execute-toolcall-error-content {
   color: #c74e39;
+}
+
+/* Row with copy button */
+.execute-toolcall-row-with-copy {
+  position: relative;
+  grid-template-columns: max-content 1fr max-content;
 }

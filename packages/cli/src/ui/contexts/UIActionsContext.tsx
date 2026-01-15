@@ -30,7 +30,6 @@ export interface UIActions {
   ) => void;
   handleAuthSelect: (
     authType: AuthType | undefined,
-    scope: SettingScope,
     credentials?: OpenAICredentials,
   ) => Promise<void>;
   setAuthState: (state: AuthState) => void;
@@ -55,7 +54,6 @@ export interface UIActions {
   handleClearScreen: () => void;
   onWorkspaceMigrationDialogOpen: () => void;
   onWorkspaceMigrationDialogClose: () => void;
-  handleProQuotaChoice: (choice: 'auth' | 'continue') => void;
   // Vision switch dialog
   handleVisionSwitchSelect: (outcome: VisionSwitchOutcome) => void;
   // Welcome back dialog

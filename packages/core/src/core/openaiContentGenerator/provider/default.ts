@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import type { GenerateContentConfig } from '@google/genai';
 import type { Config } from '../../../config/config.js';
 import type { ContentGeneratorConfig } from '../../contentGenerator.js';
 import { DEFAULT_TIMEOUT, DEFAULT_MAX_RETRIES } from '../constants.js';
@@ -24,9 +25,14 @@ export class DefaultOpenAICompatibleProvider
   buildHeaders(): Record<string, string | undefined> {
     const version = this.cliConfig.getCliVersion() || 'unknown';
     const userAgent = `QwenCode/${version} (${process.platform}; ${process.arch})`;
-    return {
+    const { customHeaders } = this.contentGeneratorConfig;
+    const defaultHeaders = {
       'User-Agent': userAgent,
     };
+
+    return customHeaders
+      ? { ...defaultHeaders, ...customHeaders }
+      : defaultHeaders;
   }
 
   buildClient(): OpenAI {
@@ -54,5 +60,9 @@ export class DefaultOpenAICompatibleProvider
     return {
       ...request, // Preserve all original parameters including sampling params
     };
+  }
+
+  getDefaultGenerationConfig(): GenerateContentConfig {
+    return {};
   }
 }

@@ -77,10 +77,8 @@ vi.mock('read-package-up', () => ({
   ),
 }));
 
-vi.mock('@qwen-code/qwen-code-core', async () => {
-  const actualServer = await vi.importActual<typeof ServerConfig>(
-    '@qwen-code/qwen-code-core',
-  );
+vi.mock('@qwen-code/qwen-code-core', async (importOriginal) => {
+  const actualServer = await importOriginal<typeof ServerConfig>();
   return {
     ...actualServer,
     IdeClient: {
@@ -1597,6 +1595,58 @@ describe('Approval mode tool exclusion logic', () => {
     expect(excludedTools).toContain(WriteFileTool.Name);
   });
 
+  it('should not exclude a tool explicitly allowed in tools.allowed', async () => {
+    process.argv = ['node', 'script.js', '-p', 'test'];
+    const argv = await parseArguments({} as Settings);
+    const settings: Settings = {
+      tools: {
+        allowed: [ShellTool.Name],
+      },
+    };
+    const extensions: Extension[] = [];
+
+    const config = await loadCliConfig(
+      settings,
+      extensions,
+      new ExtensionEnablementManager(
+        ExtensionStorage.getUserExtensionsDir(),
+        argv.extensions,
+      ),
+      argv,
+    );
+
+    const excludedTools = config.getExcludeTools();
+    expect(excludedTools).not.toContain(ShellTool.Name);
+    expect(excludedTools).toContain(EditTool.Name);
+    expect(excludedTools).toContain(WriteFileTool.Name);
+  });
+
+  it('should not exclude a tool explicitly allowed in tools.core', async () => {
+    process.argv = ['node', 'script.js', '-p', 'test'];
+    const argv = await parseArguments({} as Settings);
+    const settings: Settings = {
+      tools: {
+        core: [ShellTool.Name],
+      },
+    };
+    const extensions: Extension[] = [];
+
+    const config = await loadCliConfig(
+      settings,
+      extensions,
+      new ExtensionEnablementManager(
+        ExtensionStorage.getUserExtensionsDir(),
+        argv.extensions,
+      ),
+      argv,
+    );
+
+    const excludedTools = config.getExcludeTools();
+    expect(excludedTools).not.toContain(ShellTool.Name);
+    expect(excludedTools).toContain(EditTool.Name);
+    expect(excludedTools).toContain(WriteFileTool.Name);
+  });
+
   it('should exclude only shell tools in non-interactive mode with auto-edit approval mode', async () => {
     process.argv = [
       'node',
@@ -2114,7 +2164,14 @@ describe('loadCliConfig model selection', () => {
   });
 
   it('always prefers model from argvs', async () => {
-    process.argv = ['node', 'script.js', '--model', 'qwen3-coder-plus'];
+    process.argv = [
+      'node',
+      'script.js',
+      '--auth-type',
+      'openai',
+      '--model',
+      'qwen3-coder-plus',
+    ];
     const argv = await parseArguments({} as Settings);
     const config = await loadCliConfig(
       {
@@ -2134,7 +2191,14 @@ describe('loadCliConfig model selection', () => {
   });
 
   it('selects the model from argvs if provided', async () => {
-    process.argv = ['node', 'script.js', '--model', 'qwen3-coder-plus'];
+    process.argv = [
+      'node',
+      'script.js',
+      '--auth-type',
+      'openai',
+      '--model',
+      'qwen3-coder-plus',
+    ];
     const argv = await parseArguments({} as Settings);
     const config = await loadCliConfig(
       {

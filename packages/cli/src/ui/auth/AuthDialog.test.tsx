@@ -6,7 +6,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AuthDialog } from './AuthDialog.js';
-import { LoadedSettings, SettingScope } from '../../config/settings.js';
+import { LoadedSettings } from '../../config/settings.js';
+import type { Config } from '@qwen-code/qwen-code-core';
 import { AuthType } from '@qwen-code/qwen-code-core';
 import { renderWithProviders } from '../../test-utils/render.js';
 import { UIStateContext } from '../contexts/UIStateContext.js';
@@ -43,9 +44,16 @@ const renderAuthDialog = (
   settings: LoadedSettings,
   uiStateOverrides: Partial<UIState> = {},
   uiActionsOverrides: Partial<UIActions> = {},
+  configAuthType: AuthType | undefined = undefined,
+  configApiKey: string | undefined = undefined,
 ) => {
   const uiState = createMockUIState(uiStateOverrides);
   const uiActions = createMockUIActions(uiActionsOverrides);
+
+  const mockConfig = {
+    getAuthType: vi.fn(() => configAuthType),
+    getContentGeneratorConfig: vi.fn(() => ({ apiKey: configApiKey })),
+  } as unknown as Config;
 
   return renderWithProviders(
     <UIStateContext.Provider value={uiState}>
@@ -53,7 +61,7 @@ const renderAuthDialog = (
         <AuthDialog />
       </UIActionsContext.Provider>
     </UIStateContext.Provider>,
-    { settings },
+    { settings, config: mockConfig },
   );
 };
 
@@ -168,7 +176,7 @@ describe('AuthDialog', () => {
 
     it('should not show the GEMINI_API_KEY message if QWEN_DEFAULT_AUTH_TYPE is set to something else', () => {
       process.env['GEMINI_API_KEY'] = 'foobar';
-      process.env['QWEN_DEFAULT_AUTH_TYPE'] = AuthType.LOGIN_WITH_GOOGLE;
+      process.env['QWEN_DEFAULT_AUTH_TYPE'] = AuthType.USE_OPENAI;
 
       const settings: LoadedSettings = new LoadedSettings(
         {
@@ -212,7 +220,7 @@ describe('AuthDialog', () => {
 
     it('should show the GEMINI_API_KEY message if QWEN_DEFAULT_AUTH_TYPE is set to use api key', () => {
       process.env['GEMINI_API_KEY'] = 'foobar';
-      process.env['QWEN_DEFAULT_AUTH_TYPE'] = AuthType.USE_GEMINI;
+      process.env['QWEN_DEFAULT_AUTH_TYPE'] = AuthType.USE_OPENAI;
 
       const settings: LoadedSettings = new LoadedSettings(
         {
@@ -421,6 +429,7 @@ describe('AuthDialog', () => {
       settings,
       {},
       { handleAuthSelect },
+      undefined, // config.getAuthType() returns undefined
     );
     await wait();
 
@@ -475,6 +484,7 @@ describe('AuthDialog', () => {
       settings,
       { authError: 'Initial error' },
       { handleAuthSelect },
+      undefined, // config.getAuthType() returns undefined
     );
     await wait();
 
@@ -504,12 +514,12 @@ describe('AuthDialog', () => {
       },
       {
         settings: {
-          security: { auth: { selectedType: AuthType.LOGIN_WITH_GOOGLE } },
+          security: { auth: { selectedType: AuthType.USE_OPENAI } },
           ui: { customThemes: {} },
           mcpServers: {},
         },
         originalSettings: {
-          security: { auth: { selectedType: AuthType.LOGIN_WITH_GOOGLE } },
+          security: { auth: { selectedType: AuthType.USE_OPENAI } },
           ui: { customThemes: {} },
           mcpServers: {},
         },
@@ -528,6 +538,7 @@ describe('AuthDialog', () => {
       settings,
       {},
       { handleAuthSelect },
+      AuthType.USE_OPENAI, // config.getAuthType() returns USE_OPENAI
     );
     await wait();
 
@@ -536,7 +547,7 @@ describe('AuthDialog', () => {
     await wait();
 
     // Should call handleAuthSelect with undefined to exit
-    expect(handleAuthSelect).toHaveBeenCalledWith(undefined, SettingScope.User);
+    expect(handleAuthSelect).toHaveBeenCalledWith(undefined);
     unmount();
   });
 });

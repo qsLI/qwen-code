@@ -62,7 +62,7 @@ const mockConfig = {
   getAllowedTools: vi.fn(() => []),
   getContentGeneratorConfig: () => ({
     model: 'test-model',
-    authType: 'oauth-personal',
+    authType: 'gemini',
   }),
   getUseSmartEdit: () => false,
   getUseModelRouter: () => false,
