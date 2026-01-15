@@ -1,6 +1,6 @@
 {
   "name": "@qwen-code/qwen-code-core",
-  "version": "0.4.1",
+  "version": "0.6.0",
   "description": "Qwen Code Core",
   "repository": {
     "type": "git",
@@ -47,7 +47,7 @@
     "fast-uri": "^3.0.6",
     "fdir": "^6.4.6",
     "fzf": "^0.5.2",
-    "glob": "^10.4.5",
+    "glob": "^10.5.0",
     "google-auth-library": "^9.11.0",
     "html-to-text": "^9.0.5",
     "https-proxy-agent": "^7.0.6",
@@ -63,7 +63,7 @@
     "simple-git": "^3.28.0",
     "strip-ansi": "^7.1.0",
     "tiktoken": "^1.0.21",
-    "undici": "^7.10.0",
+    "undici": "^6.22.0",
     "uuid": "^9.0.1",
     "ws": "^8.18.0"
   },
