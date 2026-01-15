@@ -60,7 +60,11 @@ export interface ExtendedChatCompletionMessageToolCall
    * Gemini 3 Pro thought signature required for verification.
    * Vertex AI OpenAI-compatible endpoint maps this to/from 'thoughtSignature' in Gemini API.
    */
-  signature?: string;
+  extra_content?: {
+    google?: {
+      thought_signature?: string;
+    };
+  };
 }
 
 /**
@@ -342,7 +346,11 @@ export class OpenAIContentConverter {
           },
           // Pass the signature back to OpenAI/Vertex AI
           // This allows Vertex AI to verify the thought process for this tool call
-          signature,
+          extra_content: {
+            google: {
+              thought_signature: signature,
+            },
+          },
         }));
 
       const assistantMessage: ExtendedChatCompletionAssistantMessageParam = {
@@ -404,7 +412,7 @@ export class OpenAIContentConverter {
       } else if ('functionCall' in part && part.functionCall) {
         functionCalls.push({
           call: part.functionCall,
-          signature: part.thoughtSignature,
+          signature: part?.extra_content?.google?.thought_signature,
         });
       } else if ('functionResponse' in part && part.functionResponse) {
         functionResponses.push(part.functionResponse);
@@ -748,7 +756,7 @@ export class OpenAIContentConverter {
           // Extract and cache thought signature if present in the chunk
           // Vertex AI sends this in the 'signature' field of the tool call
           const signature = (toolCall as ExtendedChatCompletionMessageToolCall)
-            .signature;
+            ?.extra_content?.google?.thought_signature;
           if (signature) {
             this.thoughtSignatureCache.set(index, signature);
           }
@@ -794,7 +802,7 @@ export class OpenAIContentConverter {
             // Attach the cached signature to the final part
             // This ensures the Gemini 'Part' object contains the verification token
             if (signature) {
-              part.thoughtSignature = signature;
+              part.extra_content = { google: { thought_signature: signature } };
             }
 
             parts.push(part);
@@ -898,12 +906,23 @@ export class OpenAIContentConverter {
               name: part.functionCall.name || '',
               arguments: JSON.stringify(part.functionCall.args || {}),
             },
+            extra_content: {
+              google: {
+                thought_signature:
+                  part?.extra_content?.google?.thought_signature || '',
+              },
+            },
           };
 
           // Capture thoughtSignature from Gemini response for future requests
           // This is critical for Gemini 3 Pro verification
-          if (part.thoughtSignature) {
-            toolCall.signature = part.thoughtSignature;
+          if (part?.extra_content?.google?.thought_signature) {
+            toolCall.extra_content = {
+              google: {
+                thought_signature:
+                  part?.extra_content?.google?.thought_signature,
+              },
+            };
           }
 
           toolCalls.push(toolCall);

@@ -8,7 +8,7 @@
       "type": "node",
       "request": "launch",
       "name": "Build & Launch CLI",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "/opt/homebrew/bin/npm",
       "runtimeArgs": ["run", "build-and-start"],
       "skipFiles": ["<node_internals>/**"],
       "cwd": "${workspaceFolder}",
@@ -52,7 +52,7 @@
       "type": "node",
       "request": "launch",
       "name": "Debug Test File",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "/opt/homebrew/bin/npm",
       "runtimeArgs": [
         "run",
         "test",
@@ -72,7 +72,7 @@
       "type": "node",
       "request": "launch",
       "name": "Launch CLI Non-Interactive",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "/opt/homebrew/bin/npm",
       "runtimeArgs": [
         "run",
         "start",
