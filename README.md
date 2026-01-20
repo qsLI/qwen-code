@@ -229,6 +229,8 @@ If you encounter issues, check the [troubleshooting guide](https://qwenlm.github
 
 To report a bug from within the CLI, run `/bug` and include a short title and repro steps.
 
+> **Note**: The CLI start screen displays the build timestamp to help identify which version you are running.
+
 ## Connect with Us
 
 - Discord: https://discord.gg/ycKBjdNd

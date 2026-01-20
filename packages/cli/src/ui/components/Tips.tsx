@@ -41,6 +41,13 @@ export const Tips: React.FC<TipsProps> = ({ config }) => {
         </Text>{' '}
         {t('for more information.')}
       </Text>
+      {process.env['BUILD_TIMESTAMP'] && (
+        <Box marginTop={1}>
+          <Text color={theme.text.secondary} dimColor>
+            Build: {process.env['BUILD_TIMESTAMP']}
+          </Text>
+        </Box>
+      )}
     </Box>
   );
 };

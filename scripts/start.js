@@ -61,6 +61,7 @@ nodeArgs.push(...process.argv.slice(2));
 const env = {
   ...process.env,
   CLI_VERSION: pkg.version,
+  BUILD_TIMESTAMP: new Date().toISOString(),
   DEV: 'true',
 };
 

@@ -59,6 +59,7 @@ esbuild
     },
     define: {
       'process.env.CLI_VERSION': JSON.stringify(pkg.version),
+      'process.env.BUILD_TIMESTAMP': JSON.stringify(new Date().toISOString()),
       // Make global available for compatibility
       global: 'globalThis',
     },
