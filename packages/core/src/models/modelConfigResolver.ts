@@ -54,6 +54,7 @@ export interface ModelConfigCliInput {
   model?: string;
   apiKey?: string;
   baseUrl?: string;
+  maxRetries?: number;
 }
 
 /**
@@ -166,6 +167,20 @@ export function resolveModelConfig(
   );
   sources['model'] = modelResult.source;
 
+  let finalModel = modelResult.value || '';
+  let fallbackModels: string[] | undefined;
+
+  if (finalModel.includes(',')) {
+    const parts = finalModel
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length > 0) {
+      finalModel = parts[0];
+      fallbackModels = parts.slice(1);
+    }
+  }
+
   // ---- API Key ----
   const apiKeyLayers: Array<ConfigLayer<string>> = [];
 
@@ -240,6 +255,7 @@ export function resolveModelConfig(
 
   // ---- Generation Config (from settings or modelProvider) ----
   const generationConfig = resolveGenerationConfig(
+    cli,
     settings?.generationConfig,
     modelProvider?.generationConfig,
     authType,
@@ -250,7 +266,8 @@ export function resolveModelConfig(
   // Build final config
   const config: ContentGeneratorConfig = {
     authType,
-    model: modelResult.value || '',
+    model: finalModel,
+    fallbackModels,
     apiKey: apiKeyResult?.value,
     apiKeyEnvKey,
     baseUrl: baseUrlResult?.value,
@@ -287,9 +304,23 @@ function resolveQwenOAuthConfig(
   const requestedModel = cli?.model || settings?.model;
   let resolvedModel: string;
   let modelSource: ConfigSource;
+  let fallbackModels: string[] | undefined;
 
-  if (requestedModel && allowedModels.has(requestedModel)) {
-    resolvedModel = requestedModel;
+  let effectiveRequestedModel = requestedModel;
+
+  if (effectiveRequestedModel && effectiveRequestedModel.includes(',')) {
+    const parts = effectiveRequestedModel
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length > 0) {
+      effectiveRequestedModel = parts[0];
+      fallbackModels = parts.slice(1);
+    }
+  }
+
+  if (effectiveRequestedModel && allowedModels.has(effectiveRequestedModel)) {
+    resolvedModel = effectiveRequestedModel;
     modelSource = cli?.model
       ? cliSource('--model')
       : settingsSource('model.name');
@@ -313,6 +344,7 @@ function resolveQwenOAuthConfig(
 
   // Resolve generation config from settings and modelProvider
   const generationConfig = resolveGenerationConfig(
+    cli,
     settings?.generationConfig,
     modelProvider?.generationConfig,
     AuthType.QWEN_OAUTH,
@@ -323,6 +355,7 @@ function resolveQwenOAuthConfig(
   const config: ContentGeneratorConfig = {
     authType: AuthType.QWEN_OAUTH,
     model: resolvedModel,
+    fallbackModels,
     apiKey: 'QWEN_OAUTH_DYNAMIC_TOKEN',
     proxy,
     ...generationConfig,
@@ -335,6 +368,7 @@ function resolveQwenOAuthConfig(
  * Resolve generation config fields (samplingParams, timeout, etc.)
  */
 function resolveGenerationConfig(
+  cliConfig: ModelConfigCliInput | undefined,
   settingsConfig: Partial<ContentGeneratorConfig> | undefined,
   modelProviderConfig: Partial<ContentGeneratorConfig> | undefined,
   authType: AuthType | undefined,
@@ -344,6 +378,13 @@ function resolveGenerationConfig(
   const result: Partial<ContentGeneratorConfig> = {};
 
   for (const field of MODEL_GENERATION_CONFIG_FIELDS) {
+    // CLI config takes priority
+    if (field === 'maxRetries' && cliConfig?.maxRetries !== undefined) {
+      result.maxRetries = cliConfig.maxRetries;
+      sources.maxRetries = cliSource('--max-retries');
+      continue;
+    }
+
     // ModelProvider config takes priority over settings config
     if (authType && modelProviderConfig && field in modelProviderConfig) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

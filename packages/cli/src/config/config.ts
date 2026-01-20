@@ -151,6 +151,7 @@ export interface CliArgs {
   coreTools: string[] | undefined;
   excludeTools: string[] | undefined;
   authType: string | undefined;
+  maxRetries: number | undefined;
   channel: string | undefined;
 }
 
@@ -465,6 +466,10 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
         .option('max-session-turns', {
           type: 'number',
           description: 'Maximum number of session turns',
+        })
+        .option('max-retries', {
+          type: 'number',
+          description: 'Maximum number of retries for failed requests',
         })
         .option('core-tools', {
           type: 'array',

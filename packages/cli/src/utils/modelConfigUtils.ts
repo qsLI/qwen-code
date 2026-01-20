@@ -21,6 +21,7 @@ export interface CliGenerationConfigInputs {
     openaiBaseUrl?: string | undefined;
     openaiLogging?: boolean | undefined;
     openaiLoggingDir?: string | undefined;
+    maxRetries?: number | undefined;
   };
   settings: Settings;
   selectedAuthType: AuthType | undefined;
@@ -103,6 +104,7 @@ export function resolveCliGenerationConfig(
       model: argv.model,
       apiKey: argv.openaiApiKey,
       baseUrl: argv.openaiBaseUrl,
+      maxRetries: argv.maxRetries,
     },
     settings: {
       model: settings.model?.name,

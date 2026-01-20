@@ -133,7 +133,8 @@ export function isQwenThrottlingError(error: unknown): boolean {
       lowerMessage.includes('throttling') ||
       lowerMessage.includes('requests throttling triggered') ||
       lowerMessage.includes('rate limit') ||
-      lowerMessage.includes('too many requests')
+      lowerMessage.includes('too many requests') ||
+      lowerMessage.includes('请求频率过高')
     );
   };
 

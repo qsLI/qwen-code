@@ -153,19 +153,18 @@ export async function retryWithBackoff<T>(
 
       if (delayDurationMs > 0) {
         // Respect Retry-After header if present and parsed
-        console.warn(
-          `Attempt ${attempt} failed with status ${delayErrorStatus ?? 'unknown'}. Retrying after explicit delay of ${delayDurationMs}ms...`,
-          error,
-        );
+        logRetryAttempt(attempt, error, delayErrorStatus, delayDurationMs);
         await delay(delayDurationMs);
         // Reset currentDelay for next potential non-429 error, or if Retry-After is not present next time
         currentDelay = initialDelayMs;
       } else {
         // Fallback to exponential backoff with jitter
-        logRetryAttempt(attempt, error, errorStatus);
         // Add jitter: +/- 30% of currentDelay
         const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
         const delayWithJitter = Math.max(0, currentDelay + jitter);
+
+        logRetryAttempt(attempt, error, errorStatus, delayWithJitter);
+
         await delay(delayWithJitter);
         currentDelay = Math.min(maxDelayMs, currentDelay * 2);
       }
@@ -185,6 +184,9 @@ export function getErrorStatus(error: unknown): number | undefined {
   if (typeof error === 'object' && error !== null) {
     if ('status' in error && typeof error.status === 'number') {
       return error.status;
+    }
+    if ('code' in error && typeof error.code === 'number') {
+      return error.code;
     }
     // Check for error.response.status (common in axios errors)
     if (
@@ -264,15 +266,19 @@ function getDelayDurationAndStatus(error: unknown): {
  * @param attempt The current attempt number.
  * @param error The error that caused the retry.
  * @param errorStatus The HTTP status code of the error, if available.
+ * @param delayMs The delay in milliseconds until the next retry.
  */
 function logRetryAttempt(
   attempt: number,
   error: unknown,
   errorStatus?: number,
+  delayMs?: number,
 ): void {
-  let message = `Attempt ${attempt} failed. Retrying with backoff...`;
+  const delaySec = delayMs ? (delayMs / 1000).toFixed(1) : '?';
+  let message = `Attempt ${attempt} failed. Retrying in ${delaySec}s...`;
+
   if (errorStatus) {
-    message = `Attempt ${attempt} failed with status ${errorStatus}. Retrying with backoff...`;
+    message = `Attempt ${attempt} failed with status ${errorStatus}. Retrying in ${delaySec}s...`;
   }
 
   if (errorStatus === 429) {
@@ -283,12 +289,12 @@ function logRetryAttempt(
     // Fallback for errors that might not have a status but have a message
     if (error.message.includes('429')) {
       console.warn(
-        `Attempt ${attempt} failed with 429 error (no Retry-After header). Retrying with backoff...`,
+        `Attempt ${attempt} failed with 429 error (no Retry-After header). Retrying in ${delaySec}s...`,
         error,
       );
     } else if (error.message.match(/5\d{2}/)) {
       console.error(
-        `Attempt ${attempt} failed with 5xx error. Retrying with backoff...`,
+        `Attempt ${attempt} failed with 5xx error. Retrying in ${delaySec}s...`,
         error,
       );
     } else {

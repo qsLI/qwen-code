@@ -71,6 +71,7 @@ export type ContentGeneratorConfig = {
   openAILoggingDir?: string;
   timeout?: number; // Timeout configuration in milliseconds
   maxRetries?: number; // Maximum retries for failed requests
+  fallbackModels?: string[]; // Models to try on 429 errors
   disableCacheControl?: boolean; // Disable cache control for DashScope providers
   samplingParams?: {
     top_p?: number;

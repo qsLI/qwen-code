@@ -64,7 +64,7 @@ import { reportError } from '../utils/errorReporting.js';
 import { getErrorMessage } from '../utils/errors.js';
 import { checkNextSpeaker } from '../utils/nextSpeakerChecker.js';
 import { flatMapTextParts } from '../utils/partUtils.js';
-import { retryWithBackoff } from '../utils/retry.js';
+import { retryWithBackoff, getErrorStatus } from '../utils/retry.js';
 
 // IDE integration
 import { ideContextStore } from '../ide/ideContext.js';
@@ -609,62 +609,132 @@ export class GeminiClient {
     abortSignal: AbortSignal,
     model: string,
   ): Promise<GenerateContentResponse> {
+    const config = this.config.getContentGeneratorConfig();
+    const fallbackModels = config?.fallbackModels || [];
+    const modelList = [model, ...fallbackModels];
+    // Remove duplicates to avoid retrying the same model redundantly
+    const uniqueModels = [...new Set(modelList)];
+
     let currentAttemptModel: string = model;
 
-    try {
-      const userMemory = this.config.getUserMemory();
-      const finalSystemInstruction = generationConfig.systemInstruction
-        ? getCustomSystemPrompt(generationConfig.systemInstruction, userMemory)
-        : getCoreSystemPrompt(userMemory, this.config.getModel());
-
-      const requestConfig: GenerateContentConfig = {
-        abortSignal,
-        ...generationConfig,
-        systemInstruction: finalSystemInstruction,
-      };
-
-      const apiCall = () => {
-        currentAttemptModel = model;
-
-        return this.getContentGeneratorOrFail().generateContent(
-          {
-            model,
-            config: requestConfig,
-            contents,
-          },
-          this.lastPromptId!,
-        );
-      };
-      const onPersistent429Callback = async (
-        authType?: string,
-        error?: unknown,
-      ) =>
-        // Pass the captured model to the centralized handler.
-        await handleFallback(this.config, currentAttemptModel, authType, error);
-
-      const result = await retryWithBackoff(apiCall, {
-        onPersistent429: onPersistent429Callback,
-        authType: this.config.getContentGeneratorConfig()?.authType,
-      });
-      return result;
-    } catch (error: unknown) {
-      if (abortSignal.aborted) {
-        throw error;
+    // Helper to determine if we should retry
+    const shouldRetry = (error: unknown, isLastModel: boolean): boolean => {
+      const status = getErrorStatus(error);
+      if (status === 429) {
+        // If it's 429 and NOT the last model, don't retry (fail fast to switch)
+        if (!isLastModel) return false;
+        return true;
       }
+      // Standard 5xx retry logic
+      if (status && status >= 500 && status < 600) return true;
+      if (error instanceof Error) {
+        if (error.message.includes('429')) return isLastModel;
+        if (error.message.match(/5\d{2}/)) return true;
+      }
+      return false;
+    };
 
-      await reportError(
-        error,
-        `Error generating content via API with model ${currentAttemptModel}.`,
-        {
-          requestContents: contents,
-          requestConfig: generationConfig,
-        },
-        'generateContent-api',
-      );
-      throw new Error(
-        `Failed to generate content with model ${currentAttemptModel}: ${getErrorMessage(error)}`,
-      );
+    for (let i = 0; i < uniqueModels.length; i++) {
+      const attemptModel = uniqueModels[i];
+      const isLastModel = i === uniqueModels.length - 1;
+      currentAttemptModel = attemptModel;
+
+      try {
+        // Switch model if needed (skip for first iteration if model matches)
+        // We always switch if i > 0 to ensure ContentGenerator is updated
+        if (i > 0) {
+          const authType = this.config.modelsConfig.getCurrentAuthType();
+          if (authType) {
+            await this.config.modelsConfig.switchModel(authType, attemptModel);
+            // Refresh config reference after switch
+            const newConfig = this.config.getContentGeneratorConfig();
+            if (newConfig?.maxRetries !== undefined) {
+              generationConfig.maxRetries = newConfig.maxRetries;
+            }
+          }
+        }
+
+        const userMemory = this.config.getUserMemory();
+        const finalSystemInstruction = generationConfig.systemInstruction
+          ? getCustomSystemPrompt(
+              generationConfig.systemInstruction,
+              userMemory,
+            )
+          : getCoreSystemPrompt(userMemory, this.config.getModel());
+
+        const requestConfig: GenerateContentConfig = {
+          abortSignal,
+          ...generationConfig,
+          systemInstruction: finalSystemInstruction,
+        };
+
+        const apiCall = () => 
+          // Note: attemptModel is closed over from the loop
+           this.getContentGeneratorOrFail().generateContent(
+            {
+              model: attemptModel,
+              config: requestConfig,
+              contents,
+            },
+            this.lastPromptId!,
+          )
+        ;
+
+        const onPersistent429Callback = async (
+          authType?: string,
+          error?: unknown,
+        ) =>
+          // Pass the captured model to the centralized handler.
+          await handleFallback(
+            this.config,
+            currentAttemptModel,
+            authType,
+            error,
+          );
+
+        const maxRetries = this.config.getContentGeneratorConfig()?.maxRetries;
+        const result = await retryWithBackoff(apiCall, {
+          onPersistent429: onPersistent429Callback,
+          authType: this.config.getContentGeneratorConfig()?.authType,
+          maxAttempts: maxRetries !== undefined ? maxRetries + 1 : undefined,
+          shouldRetryOnError: (err) => shouldRetry(err, isLastModel),
+        });
+        return result;
+      } catch (error: unknown) {
+        // If 429 and not last model, swallow error and continue to next model
+        const status = getErrorStatus(error);
+        const is429 =
+          status === 429 ||
+          (error instanceof Error && error.message.includes('429'));
+
+        if (is429 && !isLastModel) {
+          console.warn(
+            `Model ${attemptModel} hit 429, switching to next model...`,
+          );
+          if (abortSignal.aborted) throw error;
+          continue;
+        }
+
+        if (abortSignal.aborted) {
+          throw error;
+        }
+
+        await reportError(
+          error,
+          `Error generating content via API with model ${currentAttemptModel}.`,
+          {
+            requestContents: contents,
+            requestConfig: generationConfig,
+          },
+          'generateContent-api',
+        );
+        throw new Error(
+          `Failed to generate content with model ${currentAttemptModel}: ${getErrorMessage(error)}`,
+        );
+      }
     }
+    // Should be unreachable if loop works correctly
+    throw new Error('All models failed');
   }
 
   async tryCompressChat(

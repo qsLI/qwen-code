@@ -572,18 +572,11 @@ export class ModelsConfig {
     }
 
     // Check if critical fields changed that require ContentGenerator recreation
-    const criticalFieldsChanged =
-      previousModel.envKey !== currentModel.envKey ||
-      previousModel.baseUrl !== currentModel.baseUrl;
-
-    if (criticalFieldsChanged) {
-      return true;
-    }
-
-    // For other auth types with strict model provider selection,
-    // if no critical fields changed, we can still hot-update
-    // (e.g., switching between two OpenAI models with same envKey and baseUrl)
-    return false;
+    // Note: We used to allow hot-updates for same-authType switches if envKey/baseUrl matched.
+    // However, since ContentGenerator implementations capture the config at construction time,
+    // we must recreate the generator to pick up the new model ID.
+    // Recreation is cheap as long as we use cached validation (which refreshAuth does).
+    return true;
   }
 
   /**

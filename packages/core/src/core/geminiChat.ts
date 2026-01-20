@@ -362,6 +362,7 @@ export class GeminiChat {
       error?: unknown,
     ) => await handleFallback(this.config, model, authType, error);
 
+    const maxRetries = this.config.getContentGeneratorConfig()?.maxRetries;
     const streamResponse = await retryWithBackoff(apiCall, {
       shouldRetryOnError: (error: unknown) => {
         if (error instanceof ApiError && error.message) {
@@ -374,6 +375,7 @@ export class GeminiChat {
       },
       onPersistent429: onPersistent429Callback,
       authType: this.config.getContentGeneratorConfig()?.authType,
+      maxAttempts: maxRetries !== undefined ? maxRetries + 1 : undefined,
     });
 
     return this.processStreamResponse(model, streamResponse);
