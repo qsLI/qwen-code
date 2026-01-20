@@ -782,11 +782,23 @@ export const useGeminiStream = (
   );
 
   const handleLoopDetectedEvent = useCallback(() => {
+    // Notify via webhook
+    const loopType = config
+      .getGeminiClient()
+      .getLoopDetectionService()
+      .getLastDetectedLoopType();
+    if (loopType) {
+      config
+        .getUsageService()
+        .sendLoopDetectionNotification(loopType)
+        .catch(console.error);
+    }
+
     // Show the confirmation dialog to choose whether to disable loop detection
     setLoopDetectionConfirmationRequest({
       onComplete: handleLoopDetectionConfirmation,
     });
-  }, [handleLoopDetectionConfirmation]);
+  }, [handleLoopDetectionConfirmation, config]);
 
   const processGeminiStreamEvents = useCallback(
     async (

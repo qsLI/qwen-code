@@ -95,6 +95,8 @@ export class LoopDetectionService {
   // Session-level disable flag
   private disabledForSession = false;
 
+  private lastDetectedLoopType: LoopType | null = null;
+
   constructor(config: Config) {
     this.config = config;
   }
@@ -108,6 +110,10 @@ export class LoopDetectionService {
       this.config,
       new LoopDetectionDisabledEvent(this.promptId),
     );
+  }
+
+  getLastDetectedLoopType(): string | null {
+    return this.lastDetectedLoopType;
   }
 
   private getToolCallKey(toolCall: { name: string; args: object }): string {
@@ -185,6 +191,7 @@ export class LoopDetectionService {
           this.promptId,
         ),
       );
+      this.lastDetectedLoopType = LoopType.CONSECUTIVE_IDENTICAL_TOOL_CALLS;
       return true;
     }
     return false;
@@ -298,6 +305,7 @@ export class LoopDetectionService {
             this.promptId,
           ),
         );
+        this.lastDetectedLoopType = LoopType.CHANTING_IDENTICAL_SENTENCES;
         return true;
       }
 
@@ -444,6 +452,7 @@ export class LoopDetectionService {
           this.config,
           new LoopDetectedEvent(LoopType.LLM_DETECTED_LOOP, this.promptId),
         );
+        this.lastDetectedLoopType = LoopType.LLM_DETECTED_LOOP;
         return true;
       } else {
         this.llmCheckInterval = Math.round(
@@ -465,6 +474,7 @@ export class LoopDetectionService {
     this.resetContentTracking();
     this.resetLlmCheckTracking();
     this.loopDetected = false;
+    this.lastDetectedLoopType = null;
   }
 
   private resetToolCallCount(): void {

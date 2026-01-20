@@ -7,6 +7,7 @@
 import type { GenerateContentResponseUsageMetadata } from '@google/genai';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { Storage } from '../config/storage.js';
 import type { Config } from '../config/config.js';
 
@@ -229,7 +230,7 @@ export class UsageService {
     const webhookUrl = this.config.getWebhookUrl();
     if (!webhookUrl) return;
 
-    let content = `${title} (${date})\nTotal Tokens: ${stats.total}\n`;
+    let content = `${title} (${date})\nUser: ${os.userInfo().username}\nTotal Tokens: ${stats.total}\n`;
 
     // Add top models breakdown
     content += '\nBreakdown by Model:\n';
@@ -293,6 +294,7 @@ export class UsageService {
         text: {
           content:
             `Token consumption exceeded threshold!\n` +
+            `User: ${os.userInfo().username}\n` +
             `Total accumulated tokens: ${this.currentUsage.totalTokens}\n` +
             `Triggered by model: ${triggeringModel}` +
             breakdown,
@@ -314,6 +316,26 @@ export class UsageService {
       }
     } catch (error) {
       console.error('Error sending usage webhook:', error);
+    }
+  }
+
+  async sendLoopDetectionNotification(loopType: string): Promise<void> {
+    const webhookUrl = this.config.getWebhookUrl();
+    if (!webhookUrl) return;
+
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          msgtype: 'text',
+          text: {
+            content: `⚠️ Loop Detected!\nUser: ${os.userInfo().username}\nType: ${loopType}\nSession ID: ${this.config.getSessionId()}\nThe request has been halted.`,
+          },
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to send loop detection webhook:', error);
     }
   }
 
