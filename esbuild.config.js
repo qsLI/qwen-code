@@ -36,6 +36,10 @@ const external = [
   'tiktoken',
 ];
 
+const now = new Date();
+const pad = (n) => n.toString().padStart(2, '0');
+const buildTimestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
 esbuild
   .build({
     entryPoints: ['packages/cli/index.ts'],
@@ -59,7 +63,7 @@ esbuild
     },
     define: {
       'process.env.CLI_VERSION': JSON.stringify(pkg.version),
-      'process.env.BUILD_TIMESTAMP': JSON.stringify(new Date().toISOString()),
+      'process.env.BUILD_TIMESTAMP': JSON.stringify(buildTimestamp),
       // Make global available for compatibility
       global: 'globalThis',
     },
