@@ -380,8 +380,8 @@ function resolveGenerationConfig(
   for (const field of MODEL_GENERATION_CONFIG_FIELDS) {
     // CLI config takes priority
     if (field === 'maxRetries' && cliConfig?.maxRetries !== undefined) {
-      result.maxRetries = cliConfig.maxRetries;
-      sources.maxRetries = cliSource('--max-retries');
+      result['maxRetries'] = cliConfig.maxRetries;
+      sources['maxRetries'] = cliSource('--max-retries');
       continue;
     }
 

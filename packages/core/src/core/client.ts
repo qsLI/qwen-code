@@ -649,7 +649,8 @@ export class GeminiClient {
             // Refresh config reference after switch
             const newConfig = this.config.getContentGeneratorConfig();
             if (newConfig?.maxRetries !== undefined) {
-              generationConfig.maxRetries = newConfig.maxRetries;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (generationConfig as any).maxRetries = newConfig.maxRetries;
             }
           }
         }
@@ -668,18 +669,16 @@ export class GeminiClient {
           systemInstruction: finalSystemInstruction,
         };
 
-        const apiCall = () => 
+        const apiCall = () =>
           // Note: attemptModel is closed over from the loop
-           this.getContentGeneratorOrFail().generateContent(
+          this.getContentGeneratorOrFail().generateContent(
             {
               model: attemptModel,
               config: requestConfig,
               contents,
             },
             this.lastPromptId!,
-          )
-        ;
-
+          );
         const onPersistent429Callback = async (
           authType?: string,
           error?: unknown,
