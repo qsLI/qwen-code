@@ -11,6 +11,8 @@ import type {
   AuthType,
   ChatCompressionSettings,
   ModelProvidersConfig,
+  WebhookSettings,
+  UsageSettings,
 } from '@qwen-code/qwen-code-core';
 import {
   ApprovalMode,
@@ -1291,6 +1293,26 @@ const SETTINGS_SCHEMA = {
         mergeStrategy: MergeStrategy.UNION,
       },
     },
+  },
+
+  webhook: {
+    type: 'object',
+    label: 'Webhook',
+    category: 'Advanced',
+    requiresRestart: false,
+    default: undefined as WebhookSettings | undefined,
+    description: 'Configuration for webhook notifications.',
+    showInDialog: false,
+  },
+
+  usage: {
+    type: 'object',
+    label: 'Usage',
+    category: 'Advanced',
+    requiresRestart: false,
+    default: undefined as UsageSettings | undefined,
+    description: 'Usage limits and tracking settings.',
+    showInDialog: false,
   },
 } as const satisfies SettingsSchema;
 

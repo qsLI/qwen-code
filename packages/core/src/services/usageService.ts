@@ -28,6 +28,7 @@ export interface DailyUsageStats {
   modelUsage: Record<string, ModelUsageStats>;
   morningReportSent: boolean;
   eveningReportSent: boolean;
+  lastError?: string;
 }
 
 export interface UsageData {
@@ -72,7 +73,7 @@ export class UsageService {
     }
     return {
       totalTokens: 0,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: this.toLocalISOString(new Date()),
       modelUsage: {},
       dailyUsage: {},
     };
@@ -119,7 +120,7 @@ export class UsageService {
 
     // 1. Update Lifetime Stats
     this.currentUsage.totalTokens += count;
-    this.currentUsage.lastUpdated = new Date().toISOString();
+    this.currentUsage.lastUpdated = this.toLocalISOString(new Date());
 
     if (!this.currentUsage.modelUsage[modelName]) {
       this.currentUsage.modelUsage[modelName] = this.createEmptyStats();
@@ -160,8 +161,37 @@ export class UsageService {
     };
   }
 
+  private toLocalISOString(date: Date): string {
+    const tzo = -date.getTimezoneOffset();
+    const dif = tzo >= 0 ? '+' : '-';
+    const pad = (num: number) => {
+      const norm = Math.floor(Math.abs(num));
+      return (norm < 10 ? '0' : '') + norm;
+    };
+
+    return (
+      date.getFullYear() +
+      '-' +
+      pad(date.getMonth() + 1) +
+      '-' +
+      pad(date.getDate()) +
+      'T' +
+      pad(date.getHours()) +
+      ':' +
+      pad(date.getMinutes()) +
+      ':' +
+      pad(date.getSeconds()) +
+      '.' +
+      String(date.getMilliseconds()).padStart(3, '0') +
+      dif +
+      pad(tzo / 60) +
+      ':' +
+      pad(tzo % 60)
+    );
+  }
+
   private getDateString(date: Date = new Date()): string {
-    return date.toISOString().split('T')[0];
+    return this.toLocalISOString(date).split('T')[0];
   }
 
   private async checkMorningReport(): Promise<void> {
@@ -175,12 +205,14 @@ export class UsageService {
       !yesterdayUsage.morningReportSent &&
       yesterdayUsage.total > 0
     ) {
-      await this.sendDailyReport(
+      const success = await this.sendDailyReport(
         yesterdayStr,
         yesterdayUsage,
         "Yesterday's Token Usage Report",
       );
-      yesterdayUsage.morningReportSent = true;
+      if (success) {
+        yesterdayUsage.morningReportSent = true;
+      }
       this.saveUsage();
     }
   }
@@ -193,12 +225,14 @@ export class UsageService {
     if (now.getHours() >= 21) {
       const todayUsage = this.currentUsage.dailyUsage[todayStr];
       if (todayUsage && !todayUsage.eveningReportSent && todayUsage.total > 0) {
-        await this.sendDailyReport(
+        const success = await this.sendDailyReport(
           todayStr,
           todayUsage,
           "Today's Evening Token Usage Report",
         );
-        todayUsage.eveningReportSent = true;
+        if (success) {
+          todayUsage.eveningReportSent = true;
+        }
         this.saveUsage();
       }
     }
@@ -226,9 +260,9 @@ export class UsageService {
     date: string,
     stats: DailyUsageStats,
     title: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const webhookUrl = this.config.getWebhookUrl();
-    if (!webhookUrl) return;
+    if (!webhookUrl) return false;
 
     let content = `${title} (${date})\nUser: ${os.userInfo().username}\nTotal Tokens: ${stats.total}\n`;
 
@@ -239,7 +273,7 @@ export class UsageService {
     }
 
     try {
-      await fetch(webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -247,8 +281,21 @@ export class UsageService {
           text: { content },
         }),
       });
+
+      if (!response.ok) {
+        const errorMsg = `Failed to send daily report: ${response.status} ${response.statusText}`;
+        console.error(errorMsg);
+        stats.lastError = errorMsg;
+        return false;
+      }
+
+      delete stats.lastError;
+      return true;
     } catch (error) {
-      console.error('Failed to send daily report:', error);
+      const errorMsg = `Failed to send daily report: ${error}`;
+      console.error(errorMsg);
+      stats.lastError = errorMsg;
+      return false;
     }
   }
 

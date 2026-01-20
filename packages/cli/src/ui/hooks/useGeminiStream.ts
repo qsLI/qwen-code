@@ -868,7 +868,13 @@ export const useGeminiStream = (
             loopDetectedRef.current = true;
             break;
           case ServerGeminiEventType.Retry:
-            // Will add the missing logic later
+            addItem(
+              {
+                type: MessageType.INFO,
+                text: 'Wait a moment, retrying due to 429...',
+              },
+              userMessageTimestamp,
+            );
             break;
           default: {
             // enforces exhaustive switch-case

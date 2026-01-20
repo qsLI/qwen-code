@@ -3089,5 +3089,28 @@ describe('useGeminiStream', () => {
         expect(result.current.loopDetectionConfirmationRequest).not.toBeNull();
       });
     });
+    it('should display retry message when ServerGeminiEventType.Retry is received', async () => {
+      mockSendMessageStream.mockReturnValue(
+        (async function* () {
+          yield { type: ServerGeminiEventType.Retry };
+        })(),
+      );
+
+      const { result } = renderTestHook();
+
+      await act(async () => {
+        await result.current.submitQuery('test query');
+      });
+
+      await waitFor(() => {
+        expect(mockAddItem).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: MessageType.INFO,
+            text: 'Wait a moment, retrying due to 429...',
+          }),
+          expect.any(Number),
+        );
+      });
+    });
   });
 });
