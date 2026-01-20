@@ -99,6 +99,13 @@ export class LoggingContentGenerator implements ContentGenerator {
         responseText,
       ),
     );
+
+    if (usageMetadata?.totalTokenCount) {
+      this.config
+        .getUsageService()
+        ?.recordTokenUsage(usageMetadata, model)
+        .catch(console.error);
+    }
   }
 
   private _logApiError(

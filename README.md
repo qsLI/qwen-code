@@ -188,6 +188,34 @@ See [settings](https://qwenlm.github.io/qwen-code-docs/en/users/configuration/se
 | Qwen Code | Qwen3-Coder-480A35 | 37.5%    |
 | Qwen Code | Qwen3-Coder-30BA3B | 31.3%    |
 
+## Token Usage & Notifications
+
+Qwen Code provides built-in token usage tracking and webhook notifications to help you monitor consumption.
+
+### Features
+
+1. **Threshold Notifications**: Notifies you every time cumulative usage crosses a multiple of the threshold (e.g., every 1M tokens).
+2. **Morning Report**: Sent on the first run of the day, summarizing yesterday's usage.
+3. **Evening Report**: Sent automatically at 21:00 (or first run after), summarizing today's usage.
+4. **Detailed Breakdown**: Includes input, output, thought, tool, and cache token counts per model.
+
+### Configuration
+
+Add the following to your `settings.json` (`~/.qwen/settings.json`):
+
+```json
+{
+  "webhook": {
+    "url": "https://your-webhook-url.com/..."
+  },
+  "usage": {
+    "tokenThreshold": 1000000
+  }
+}
+```
+
+Usage data is persisted locally in `~/.qwen/usage.json`.
+
 ## Ecosystem
 
 Looking for a graphical interface?

@@ -101,6 +101,7 @@ import {
   SessionService,
   type ResumedSessionData,
 } from '../services/sessionService.js';
+import { UsageService } from '../services/usageService.js';
 import { randomUUID } from 'node:crypto';
 
 import {
@@ -186,6 +187,15 @@ export interface TelemetrySettings {
   logPrompts?: boolean;
   outfile?: string;
   useCollector?: boolean;
+}
+
+export interface WebhookSettings {
+  url?: string;
+  events?: string[];
+}
+
+export interface UsageSettings {
+  tokenThreshold?: number;
 }
 
 export interface OutputSettings {
@@ -366,6 +376,8 @@ export interface ConfigParameters {
   channel?: string;
   /** Model providers configuration grouped by authType */
   modelProvidersConfig?: ModelProvidersConfig;
+  webhook?: WebhookSettings;
+  usage?: UsageSettings;
 }
 
 function normalizeConfigOutputFormat(
@@ -451,6 +463,7 @@ export class Config {
   private gitService: GitService | undefined = undefined;
   private sessionService: SessionService | undefined = undefined;
   private chatRecordingService: ChatRecordingService | undefined = undefined;
+  private usageService: UsageService | undefined = undefined;
   private readonly checkpointing: boolean;
   private readonly proxy: string | undefined;
   private readonly cwd: string;
@@ -506,6 +519,8 @@ export class Config {
   private readonly eventEmitter?: EventEmitter;
   private readonly useSmartEdit: boolean;
   private readonly channel: string | undefined;
+  private readonly webhookSettings: WebhookSettings | undefined;
+  private readonly usageSettings: UsageSettings | undefined;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId ?? randomUUID();
@@ -617,6 +632,8 @@ export class Config {
     this.useSmartEdit = params.useSmartEdit ?? false;
     this.extensionManagement = params.extensionManagement ?? true;
     this.channel = params.channel;
+    this.webhookSettings = params.webhook;
+    this.usageSettings = params.usage;
     this.storage = new Storage(this.targetDir);
     this.vlmSwitchMode = params.vlmSwitchMode;
     this.inputFormat = params.inputFormat ?? InputFormat.TEXT;
@@ -686,9 +703,39 @@ export class Config {
       options?.sendSdkMcpMessage,
     );
 
+    // Initialize usage service
+    this.usageService = new UsageService(this);
+
     await this.geminiClient.initialize();
 
     logStartSession(this, new StartSessionEvent(this));
+  }
+
+  getUsageService(): UsageService {
+    // UsageService is initialized in initialize(), but might be accessed early in some edge cases.
+    // Return undefined if not initialized, or throw?
+    // Given the pattern elsewhere, we assume config is initialized before heavy usage.
+    // If accessed before init, it will return undefined.
+    // However, for strict type safety in consumers, we might want to throw if missing,
+    // but the property is typed as UsageService | undefined.
+    // Let's just return the property.
+    if (!this.usageService) {
+      // Lazy init if needed? Or just throw.
+      // Better to stick to the pattern: initialize() sets it up.
+      // But for robustness, we can return undefined if not ready.
+      // However, the return type of this method isn't defined yet.
+      // Let's define it properly.
+      throw new Error('UsageService not initialized');
+    }
+    return this.usageService;
+  }
+
+  getWebhookUrl(): string | undefined {
+    return this.webhookSettings?.url;
+  }
+
+  getUsageSettings(): UsageSettings | undefined {
+    return this.usageSettings;
   }
 
   getContentGenerator(): ContentGenerator {
