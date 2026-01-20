@@ -562,7 +562,8 @@ const SETTINGS_SCHEMA = {
         category: 'Model',
         requiresRestart: false,
         default: undefined as string | undefined,
-        description: 'The model to use for conversations.',
+        description:
+          'The model to use for conversations. You can specify multiple models separated by commas for fallback (e.g., "model-a,model-b").',
         showInDialog: false,
       },
       maxSessionTurns: {

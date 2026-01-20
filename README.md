@@ -179,6 +179,17 @@ Qwen Code can be configured via `settings.json`, environment variables, and CLI 
 
 See [settings](https://qwenlm.github.io/qwen-code-docs/en/users/configuration/settings/) for available options and precedence.
 
+### Model Configuration
+
+You can specify the model to use via the `--model` flag or the `model.name` setting in `settings.json`.
+
+Support for multiple models (fallback):
+
+- **CLI**: `qwen --model "model-a,model-b"`
+- **Settings**: `"model": { "name": "model-a,model-b" }`
+
+If the primary model (`model-a`) fails or is unavailable, Qwen Code will automatically fall back to the next model (`model-b`).
+
 ## Benchmark Results
 
 ### Terminal-Bench Performance
