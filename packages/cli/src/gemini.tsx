@@ -110,6 +110,7 @@ function getNodeMemoryArgs(isDebugMode: boolean): string[] {
 import { ExtensionEnablementManager } from './config/extensions/extensionEnablement.js';
 import { loadSandboxConfig } from './config/sandboxConfig.js';
 import { runAcpAgent } from './acp-integration/acpAgent.js';
+import { profilerService } from '@qwen-code/qwen-code-core';
 
 export function setupUnhandledRejectionHandler() {
   let unhandledRejectionOccurred = false;
@@ -205,6 +206,7 @@ export async function startInteractiveUI(
 
 export async function main() {
   setupUnhandledRejectionHandler();
+  profilerService.mark('cli_main_start', 'start');
   const settings = loadSettings();
   migrateDeprecatedSettings(settings);
   await cleanupCheckpoints();
@@ -434,6 +436,7 @@ export async function main() {
     if (inputFormat !== InputFormat.STREAM_JSON) {
       await config.initialize();
     }
+    profilerService.mark('cli_main_interactive_ready', 'point');
 
     // Only read stdin if NOT in stream-json mode
     // In stream-json mode, stdin is used for protocol messages (control requests, etc.)

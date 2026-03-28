@@ -87,6 +87,7 @@ export * from './services/chatRecordingService.js';
 export * from './services/sessionService.js';
 export * from './services/usageService.js';
 export * from './services/fileSystemService.js';
+export * from './services/profilerService.js';
 
 // Export IDE specific logic
 export * from './ide/ide-client.js';

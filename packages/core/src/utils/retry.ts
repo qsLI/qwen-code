@@ -30,8 +30,8 @@ export interface RetryOptions {
 
 const DEFAULT_RETRY_OPTIONS: RetryOptions = {
   maxAttempts: 5,
-  initialDelayMs: 1000,
-  maxDelayMs: 7000, // 30 seconds
+  initialDelayMs: 500,
+  maxDelayMs: 5000, // 30 seconds
   shouldRetryOnError: defaultShouldRetry,
 };
 
